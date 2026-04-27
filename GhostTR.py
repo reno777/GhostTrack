@@ -183,6 +183,27 @@ def showIP():
 
 
 @is_option
+def dns_lookup():
+    domain = input(f"\n {Wh}Enter domain target {Gr}Ex [example.com] {Wh}: {Gr}").strip()
+    print()
+    print(f' {Wh}============= {Gr}DNS RECORDS {Wh}=============')
+    record_types = ['A', 'AAAA', 'MX', 'NS', 'TXT', 'CNAME', 'SOA']
+    found_any = False
+    for rtype in record_types:
+        try:
+            answers = dns.resolver.resolve(domain, rtype)
+            for rdata in answers:
+                print(f"{Wh} {rtype:<6}          :{Gr}", rdata.to_text())
+            found_any = True
+        except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN, dns.resolver.NoNameservers):
+            pass
+        except Exception:
+            pass
+    if not found_any:
+        print(f"{Re} No DNS records found for {domain}")
+
+
+@is_option
 def whois_lookup():
     domain = input(f"\n {Wh}Enter domain target {Gr}Ex [example.com] {Wh}: {Gr}").strip()
     print()
@@ -237,6 +258,11 @@ options = [
         'num': 5,
         'text': 'WHOIS Lookup',
         'func': whois_lookup
+    },
+    {
+        'num': 6,
+        'text': 'DNS Records',
+        'func': dns_lookup
     },
     {
         'num': 0,
