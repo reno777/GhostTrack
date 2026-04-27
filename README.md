@@ -1,24 +1,43 @@
 # GhostTrack
-Useful tool to track location or mobile number, so this tool can be called osint or also information gathering
+An OSINT and information gathering tool for IPs, phone numbers, domains, usernames, emails, and images.
 
 <img src="https://github.com/HunxByts/GhostTrack/blob/main/asset/bn.png"/>
 
-New update :
-```Version 2.2```
+---
 
-### Instalation on Linux (deb)
+## Features
+
+| # | Feature | Description |
+|---|---------|-------------|
+| 1 | **IP Tracker** | Geolocation, ISP, ASN, timezone, and Maps link for any IP |
+| 2 | **Show Your IP** | Displays your current public IP address |
+| 3 | **Phone Number Tracker** | Carrier, location, number formats, and OSINT search links (Telegram, WhatsApp, Truecaller, Google) |
+| 4 | **Username Tracker** | Searches 22 social media platforms for a given username |
+| 5 | **WHOIS Lookup** | Registrar, creation/expiry dates, nameservers, and org info for any domain |
+| 6 | **DNS Records** | Queries A, AAAA, MX, NS, TXT, CNAME, and SOA records for any domain |
+| 7 | **Email Breach Check** | Checks HaveIBeenPwned for known data breaches tied to an email address (requires free API key) |
+| 8 | **EXIF Data Extractor** | Pulls GPS coordinates, device make/model, and timestamps from image files |
+| 9 | **Reverse IP Lookup** | Lists all domains co-hosted on a given IP address |
+| 10 | **URL Expander** | Reveals the full redirect chain and final destination of any shortened URL |
+
+---
+
+## Installation
+
+### Linux (Debian/Ubuntu)
 ```
-sudo apt-get install git
-sudo apt-get install python3
+sudo apt-get install git python3 python3-pip
 ```
 
-### Instalation on Termux
+### Termux
 ```
-pkg install git
-pkg install python3
+pkg install git python3
 ```
 
-### Usage Tool
+---
+
+## Usage
+
 ```
 git clone https://github.com/HunxByts/GhostTrack.git
 cd GhostTrack
@@ -26,28 +45,29 @@ pip3 install -r requirements.txt
 python3 GhostTR.py
 ```
 
-Display on the menu ```IP Tracker```
+---
 
-<img src="https://github.com/HunxByts/GhostTrack/blob/main/asset/ip.png " />
+## Requirements
 
-on the IP Track menu, you can combo with the seeker tool to get the target IP
+- Python 3.7+
+- See `requirements.txt` for Python dependencies:
+  - `requests`
+  - `phonenumbers`
+  - `python-whois`
+  - `dnspython`
+  - `Pillow`
+
+---
+
+## Notes
+
+- **Email Breach Check** requires a free API key from [haveibeenpwned.com/API/Key](https://haveibeenpwned.com/API/Key)
+- **Reverse IP Lookup** uses the HackerTarget free API (rate limited)
+- IP tracking pairs well with [Seeker](https://github.com/thewhiteh4t/seeker) to capture a target's real IP
+
+---
+
 <details>
-<summary>:zap: Install Seeker :</summary>
-- <strong><a href="https://github.com/thewhiteh4t/seeker">Get Seeker</a></strong>
-</details>
-
-Display on the menu ```Phone Tracker```
-
-<img src="https://github.com/HunxByts/GhostTrack/blob/main/asset/phone.png" />
-
-on this menu you can search for information from the target phone number
-
-Display on the menu ```Username Tracker```
-
-<img src="https://github.com/HunxByts/GhostTrack/blob/main/asset/User.png"/>
-on this menu you can search for information from the target username on social media
-
-<details>
-<summary>:zap: Author :</summary>
-- <strong><a href="https://github.com/HunxByts">HunxByts</a></strong>
+<summary>Author</summary>
+<strong><a href="https://github.com/HunxByts">HunxByts</a></strong>
 </details>
