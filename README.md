@@ -1,6 +1,8 @@
 # GhostTrack
 An OSINT and information gathering tool for IPs, phone numbers, domains, usernames, emails, and images.
 
+> Forked and expanded by [reno777](https://github.com/reno777) — original by [HunxByts](https://github.com/HunxByts)
+
 <img src="https://github.com/HunxByts/GhostTrack/blob/main/asset/bn.png"/>
 
 ---
@@ -68,6 +70,7 @@ python3 GhostTR.py
 ---
 
 <details>
-<summary>Author</summary>
-<strong><a href="https://github.com/HunxByts">HunxByts</a></strong>
+<summary>Credits</summary>
+<strong>Fork maintained by: <a href="https://github.com/reno777">reno777</a></strong><br>
+<strong>Original author: <a href="https://github.com/HunxByts">HunxByts</a></strong>
 </details>
