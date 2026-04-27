@@ -124,6 +124,16 @@ def phoneGW():
     else:
         print(f" {Wh}Type                 :{Gr} This is another type of number")
 
+    e164 = phonenumbers.format_number(parsed_number, phonenumbers.PhoneNumberFormat.E164)
+    digits_only = e164.replace('+', '')
+    encoded = e164.replace('+', '%2B')
+
+    print(f"\n {Wh}========== {Gr}OSINT SEARCH LINKS {Wh}==========")
+    print(f" {Wh}[ {Gr}+ {Wh}] Telegram    : {Gr}https://t.me/{e164}")
+    print(f" {Wh}[ {Gr}+ {Wh}] WhatsApp    : {Gr}https://wa.me/{digits_only}")
+    print(f" {Wh}[ {Gr}+ {Wh}] Truecaller  : {Gr}https://www.truecaller.com/search/{region_code}/{parsed_number.national_number}")
+    print(f" {Wh}[ {Gr}+ {Wh}] Google      : {Gr}https://www.google.com/search?q={encoded}")
+
 
 @is_option
 def TrackLu():

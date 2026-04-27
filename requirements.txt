@@ -1,2 +1,5 @@
 requests
 phonenumbers
+python-whois
+dnspython
+Pillow
