@@ -42,8 +42,11 @@ def IP_Track():
     ip = input(f"{Wh}\n Enter IP target : {Gr}")  # INPUT IP ADDRESS
     print()
     print(f' {Wh}============= {Gr}SHOW INFORMATION IP ADDRESS {Wh}=============')
-    req_api = requests.get(f"http://ipwho.is/{ip}")  # API IPWHOIS.IS
-    ip_data = json.loads(req_api.text)
+    req_api = requests.get(f"https://ipwho.is/{ip}", timeout=10)
+    ip_data = req_api.json()
+    if not ip_data.get("success", True):
+        print(f"{Re} Error: {ip_data.get('message', 'Invalid IP address')}")
+        return
     time.sleep(2)
     print(f"{Wh}\n IP target       :{Gr}", ip)
     print(f"{Wh} Type IP         :{Gr}", ip_data["type"])
@@ -56,8 +59,8 @@ def IP_Track():
     print(f"{Wh} Region Code     :{Gr}", ip_data["region_code"])
     print(f"{Wh} Latitude        :{Gr}", ip_data["latitude"])
     print(f"{Wh} Longitude       :{Gr}", ip_data["longitude"])
-    lat = int(ip_data['latitude'])
-    lon = int(ip_data['longitude'])
+    lat = float(ip_data['latitude'])
+    lon = float(ip_data['longitude'])
     print(f"{Wh} Maps            :{Gr}", f"https://www.google.com/maps/@{lat},{lon},8z")
     print(f"{Wh} EU              :{Gr}", ip_data["is_eu"])
     print(f"{Wh} Postal          :{Gr}", ip_data["postal"])
@@ -74,7 +77,7 @@ def IP_Track():
     print(f"{Wh} DST             :{Gr}", ip_data["timezone"]["is_dst"])
     print(f"{Wh} Offset          :{Gr}", ip_data["timezone"]["offset"])
     print(f"{Wh} UTC             :{Gr}", ip_data["timezone"]["utc"])
-    print(f"{Wh} Current Time    :{Gr}", ip_data["timezone"]["current_time"])
+    print(f"{Wh} Current Time    :{Gr}", ip_data["timezone"].get("current_time", "N/A"))
 
 
 @is_option
@@ -145,13 +148,12 @@ def TrackLu():
             {"url": "https://www.stumbleupon.com/stumbler/{}", "name": "StumbleUpon"},
             {"url": "https://www.ello.co/{}", "name": "Ello"},
             {"url": "https://www.producthunt.com/@{}", "name": "Product Hunt"},
-            {"url": "https://www.snapchat.com/add/{}", "name": "Snapchat"},
             {"url": "https://www.telegram.me/{}", "name": "Telegram"},
             {"url": "https://www.weheartit.com/{}", "name": "We Heart It"}
         ]
         for site in social_media:
             url = site['url'].format(username)
-            response = requests.get(url)
+            response = requests.get(url, timeout=10)
             if response.status_code == 200:
                 results[site['name']] = url
             else:
@@ -168,11 +170,11 @@ def TrackLu():
 
 @is_option
 def showIP():
-    respone = requests.get('https://api.ipify.org/')
-    Show_IP = respone.text
+    response = requests.get('https://api.ipify.org/', timeout=10)
+    Show_IP = response.text
 
     print(f"\n {Wh}========== {Gr}SHOW INFORMATION YOUR IP {Wh}==========")
-    print(f"\n {Wh}[{Gr} + {Wh}] Your IP Adrress : {Gr}{Show_IP}")
+    print(f"\n {Wh}[{Gr} + {Wh}] Your IP Address : {Gr}{Show_IP}")
     print(f"\n {Wh}==============================================")
 
 
@@ -231,11 +233,9 @@ def execute_option(opt):
     try:
         call_option(opt)
         input(f'\n{Wh}[ {Gr}+ {Wh}] {Gr}Press enter to continue')
-        main()
     except ValueError as e:
         print(e)
         time.sleep(2)
-        execute_option(opt)
     except KeyboardInterrupt:
         print(f'\n{Wh}[ {Re}! {Wh}] {Re}Exit')
         time.sleep(2)
@@ -294,22 +294,20 @@ def run_banner():
 
 
 def main():
-    clear()
-    option()
-    time.sleep(1)
-    try:
-        opt = int(input(f"{Wh}\n [ + ] {Gr}Select Option : {Wh}"))
-        execute_option(opt)
-    except ValueError:
-        print(f'\n{Wh}[ {Re}! {Wh}] {Re}Please input number')
-        time.sleep(2)
-        main()
+    while True:
+        clear()
+        option()
+        try:
+            opt = int(input(f"{Wh}\n [ + ] {Gr}Select Option : {Wh}"))
+            execute_option(opt)
+        except ValueError:
+            print(f'\n{Wh}[ {Re}! {Wh}] {Re}Please input number')
+            time.sleep(2)
+        except KeyboardInterrupt:
+            print(f'\n{Wh}[ {Re}! {Wh}] {Re}Exit')
+            time.sleep(2)
+            exit()
 
 
 if __name__ == '__main__':
-    try:
-        main()
-    except KeyboardInterrupt:
-        print(f'\n{Wh}[ {Re}! {Wh}] {Re}Exit')
-        time.sleep(2)
-        exit()
+    main()
