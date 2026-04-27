@@ -183,6 +183,44 @@ def showIP():
 
 
 @is_option
+def email_breach():
+    email = input(f"\n {Wh}Enter email target {Wh}: {Gr}").strip()
+    api_key = input(f" {Wh}Enter HIBP API key (get one at haveibeenpwned.com/API/Key) {Wh}: {Gr}").strip()
+    print()
+    print(f' {Wh}============= {Gr}EMAIL BREACH CHECK {Wh}=============')
+    headers = {
+        'hibp-api-key': api_key,
+        'user-agent': 'GhostTrack-OSINT'
+    }
+    try:
+        resp = requests.get(
+            f"https://haveibeenpwned.com/api/v3/breachedaccount/{email}",
+            headers=headers,
+            timeout=10
+        )
+        if resp.status_code == 404:
+            print(f"{Gr}\n No breaches found for {email}")
+            return
+        if resp.status_code == 401:
+            print(f"{Re} Invalid or missing API key")
+            return
+        if resp.status_code != 200:
+            print(f"{Re} Error: HTTP {resp.status_code}")
+            return
+        breaches = resp.json()
+        print(f"{Re}\n Found in {len(breaches)} breach(es):\n")
+        for b in breaches:
+            print(f"{Wh} Name            :{Gr}", b.get('Name'))
+            print(f"{Wh} Domain          :{Gr}", b.get('Domain'))
+            print(f"{Wh} Breach Date     :{Gr}", b.get('BreachDate'))
+            print(f"{Wh} Pwn Count       :{Gr}", f"{b.get('PwnCount', 0):,}")
+            print(f"{Wh} Data Classes    :{Gr}", ', '.join(b.get('DataClasses', [])))
+            print()
+    except Exception as e:
+        print(f"{Re} Error: {e}")
+
+
+@is_option
 def dns_lookup():
     domain = input(f"\n {Wh}Enter domain target {Gr}Ex [example.com] {Wh}: {Gr}").strip()
     print()
@@ -263,6 +301,11 @@ options = [
         'num': 6,
         'text': 'DNS Records',
         'func': dns_lookup
+    },
+    {
+        'num': 7,
+        'text': 'Email Breach Check',
+        'func': email_breach
     },
     {
         'num': 0,
