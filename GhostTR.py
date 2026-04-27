@@ -11,6 +11,7 @@ import os
 import phonenumbers
 import whois
 import dns.resolver
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from PIL import Image
 from PIL.ExifTags import TAGS, GPSTAGS
 from phonenumbers import carrier, geocoder, timezone
@@ -50,8 +51,6 @@ def IP_Track():
         print(f"{Re} Error: {ip_data.get('message', 'Invalid IP address')}")
         return
 
-    time.sleep(2)
-
     lat = float(ip_data['latitude'])
     lon = float(ip_data['longitude'])
 
@@ -89,10 +88,14 @@ def IP_Track():
 @is_option
 def phoneGW():
     # Parses a phone number and returns carrier, location, formats, and OSINT search links
-    User_phone = input(f"\n {Wh}Enter phone number target {Gr}Ex [+6281xxxxxxxxx] {Wh}: {Gr}")
+    User_phone = input(f"\n {Wh}Enter phone number target {Gr}Ex [+6281xxxxxxxxx] {Wh}: {Gr}").strip()
     default_region = "ID"  # fallback region if no country code is provided
 
-    parsed_number = phonenumbers.parse(User_phone, default_region)
+    try:
+        parsed_number = phonenumbers.parse(User_phone, default_region)
+    except phonenumbers.NumberParseException as e:
+        print(f"{Re} Invalid phone number: {e}")
+        return
     region_code = phonenumbers.region_code_for_number(parsed_number)
     jenis_provider = carrier.name_for_number(parsed_number, "en")
     location = geocoder.description_for_number(parsed_number, "id")
@@ -140,58 +143,70 @@ def phoneGW():
 
 @is_option
 def TrackLu():
-    # Checks whether a username exists on 22 social media platforms via HTTP status codes
+    # Checks whether a username exists on social media platforms via HTTP status codes
     # Note: a 200 response indicates the profile URL is reachable, not always that the account exists
-    try:
-        username = input(f"\n {Wh}Enter Username : {Gr}")
-        results = {}
-        social_media = [
-            {"url": "https://www.facebook.com/{}", "name": "Facebook"},
-            {"url": "https://www.twitter.com/{}", "name": "Twitter"},
-            {"url": "https://www.instagram.com/{}", "name": "Instagram"},
-            {"url": "https://www.linkedin.com/in/{}", "name": "LinkedIn"},
-            {"url": "https://www.github.com/{}", "name": "GitHub"},
-            {"url": "https://www.pinterest.com/{}", "name": "Pinterest"},
-            {"url": "https://www.tumblr.com/{}", "name": "Tumblr"},
-            {"url": "https://www.youtube.com/{}", "name": "Youtube"},
-            {"url": "https://soundcloud.com/{}", "name": "SoundCloud"},
-            {"url": "https://www.snapchat.com/add/{}", "name": "Snapchat"},
-            {"url": "https://www.tiktok.com/@{}", "name": "TikTok"},
-            {"url": "https://www.behance.net/{}", "name": "Behance"},
-            {"url": "https://www.medium.com/@{}", "name": "Medium"},
-            {"url": "https://www.quora.com/profile/{}", "name": "Quora"},
-            {"url": "https://www.flickr.com/people/{}", "name": "Flickr"},
-            {"url": "https://www.periscope.tv/{}", "name": "Periscope"},
-            {"url": "https://www.twitch.tv/{}", "name": "Twitch"},
-            {"url": "https://www.dribbble.com/{}", "name": "Dribbble"},
-            {"url": "https://www.stumbleupon.com/stumbler/{}", "name": "StumbleUpon"},
-            {"url": "https://www.ello.co/{}", "name": "Ello"},
-            {"url": "https://www.producthunt.com/@{}", "name": "Product Hunt"},
-            {"url": "https://www.telegram.me/{}", "name": "Telegram"},
-            {"url": "https://www.weheartit.com/{}", "name": "We Heart It"}
-        ]
-        for site in social_media:
-            url = site['url'].format(username)
+    # Requests run in parallel via ThreadPoolExecutor for speed
+    username = input(f"\n {Wh}Enter Username : {Gr}").strip()
+    social_media = [
+        {"url": "https://www.facebook.com/{}", "name": "Facebook"},
+        {"url": "https://www.twitter.com/{}", "name": "Twitter"},
+        {"url": "https://www.instagram.com/{}", "name": "Instagram"},
+        {"url": "https://www.linkedin.com/in/{}", "name": "LinkedIn"},
+        {"url": "https://www.github.com/{}", "name": "GitHub"},
+        {"url": "https://www.pinterest.com/{}", "name": "Pinterest"},
+        {"url": "https://www.tumblr.com/{}", "name": "Tumblr"},
+        {"url": "https://www.youtube.com/{}", "name": "Youtube"},
+        {"url": "https://soundcloud.com/{}", "name": "SoundCloud"},
+        {"url": "https://www.snapchat.com/add/{}", "name": "Snapchat"},
+        {"url": "https://www.tiktok.com/@{}", "name": "TikTok"},
+        {"url": "https://www.behance.net/{}", "name": "Behance"},
+        {"url": "https://www.medium.com/@{}", "name": "Medium"},
+        {"url": "https://www.quora.com/profile/{}", "name": "Quora"},
+        {"url": "https://www.flickr.com/people/{}", "name": "Flickr"},
+        {"url": "https://www.periscope.tv/{}", "name": "Periscope"},
+        {"url": "https://www.twitch.tv/{}", "name": "Twitch"},
+        {"url": "https://www.dribbble.com/{}", "name": "Dribbble"},
+        {"url": "https://www.stumbleupon.com/stumbler/{}", "name": "StumbleUpon"},
+        {"url": "https://www.ello.co/{}", "name": "Ello"},
+        {"url": "https://www.producthunt.com/@{}", "name": "Product Hunt"},
+        {"url": "https://www.telegram.me/{}", "name": "Telegram"},
+        {"url": "https://www.weheartit.com/{}", "name": "We Heart It"}
+    ]
+
+    def check_site(site):
+        url = site['url'].format(username)
+        try:
             response = requests.get(url, timeout=10)
-            if response.status_code == 200:
-                results[site['name']] = url
-            else:
-                results[site['name']] = f"{Ye}Username not found!"
-    except Exception as e:
-        print(f"{Re}Error : {e}")
-        return
+            found = response.status_code == 200
+        except Exception:
+            found = False
+        return site['name'], url, found
+
+    print(f"{Ye}\n Checking {len(social_media)} platforms...")
+    results = {}
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = {executor.submit(check_site, site): site for site in social_media}
+        for future in as_completed(futures):
+            name, url, found = future.result()
+            results[name] = url if found else f"{Ye}Username not found!"
 
     print(f"\n {Wh}========== {Gr}SHOW INFORMATION USERNAME {Wh}==========")
     print()
-    for site, url in results.items():
-        print(f" {Wh}[ {Gr}+ {Wh}] {site} : {Gr}{url}")
+    # Print in original order rather than completion order
+    order = [s['name'] for s in social_media]
+    for name in order:
+        print(f" {Wh}[ {Gr}+ {Wh}] {name} : {Gr}{results[name]}")
 
 
 @is_option
 def showIP():
     # Returns the machine's current public-facing IP via ipify
-    response = requests.get('https://api.ipify.org/', timeout=10)
-    Show_IP = response.text
+    try:
+        response = requests.get('https://api.ipify.org/', timeout=10)
+        Show_IP = response.text
+    except Exception as e:
+        print(f"{Re} Error retrieving IP: {e}")
+        return
 
     print(f"\n {Wh}========== {Gr}SHOW INFORMATION YOUR IP {Wh}==========")
     print(f"\n {Wh}[{Gr} + {Wh}] Your IP Address : {Gr}{Show_IP}")
@@ -367,6 +382,8 @@ def reverse_ip():
 def url_expander():
     # Follows all redirects and displays the full chain to the final destination
     url = input(f"\n {Wh}Enter shortened URL {Wh}: {Gr}").strip()
+    if not url.startswith(('http://', 'https://')):
+        url = 'https://' + url
     print()
     print(f' {Wh}============= {Gr}URL EXPANDER {Wh}=============')
     try:
@@ -411,17 +428,11 @@ def clear():
         os.system('clear')
 
 
-def is_in_options(num):
-    # Returns True if the given number matches any menu option
-    return any(opt['num'] == num for opt in options)
-
-
 def call_option(opt):
-    if not is_in_options(opt):
+    match = next((o for o in options if o['num'] == opt), None)
+    if not match:
         raise ValueError('Option not found')
-    for option in options:
-        if option['num'] == opt:
-            option['func']()
+    match['func']()
 
 
 def execute_option(opt):
