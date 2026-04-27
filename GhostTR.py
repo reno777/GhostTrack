@@ -183,6 +183,49 @@ def showIP():
 
 
 @is_option
+def exif_extract():
+    path = input(f"\n {Wh}Enter image file path {Wh}: {Gr}").strip()
+    print()
+    print(f' {Wh}============= {Gr}EXIF DATA {Wh}=============')
+    try:
+        img = Image.open(path)
+        exif_raw = img._getexif()
+    except FileNotFoundError:
+        print(f"{Re} File not found: {path}")
+        return
+    except Exception as e:
+        print(f"{Re} Error reading image: {e}")
+        return
+
+    if not exif_raw:
+        print(f"{Ye} No EXIF data found in this image")
+        return
+
+    exif = {TAGS.get(k, k): v for k, v in exif_raw.items()}
+
+    gps_info = exif.get('GPSInfo')
+    if gps_info:
+        gps = {GPSTAGS.get(k, k): v for k, v in gps_info.items()}
+        def dms_to_dd(dms, ref):
+            d, m, s = dms
+            dd = float(d) + float(m) / 60 + float(s) / 3600
+            return -dd if ref in ('S', 'W') else dd
+        try:
+            lat = dms_to_dd(gps['GPSLatitude'], gps['GPSLatitudeRef'])
+            lon = dms_to_dd(gps['GPSLongitude'], gps['GPSLongitudeRef'])
+            print(f"{Wh} GPS Coordinates :{Gr}", f"{lat:.6f}, {lon:.6f}")
+            print(f"{Wh} Maps            :{Gr}", f"https://www.google.com/maps/@{lat},{lon},15z")
+        except KeyError:
+            pass
+
+    for tag in ('Make', 'Model', 'Software', 'DateTime', 'DateTimeOriginal',
+                'ExifImageWidth', 'ExifImageHeight', 'Flash', 'FocalLength'):
+        val = exif.get(tag)
+        if val:
+            print(f"{Wh} {tag:<16} :{Gr}", val)
+
+
+@is_option
 def email_breach():
     email = input(f"\n {Wh}Enter email target {Wh}: {Gr}").strip()
     api_key = input(f" {Wh}Enter HIBP API key (get one at haveibeenpwned.com/API/Key) {Wh}: {Gr}").strip()
@@ -306,6 +349,11 @@ options = [
         'num': 7,
         'text': 'Email Breach Check',
         'func': email_breach
+    },
+    {
+        'num': 8,
+        'text': 'EXIF Data Extractor',
+        'func': exif_extract
     },
     {
         'num': 0,
