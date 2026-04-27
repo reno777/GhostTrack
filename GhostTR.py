@@ -183,6 +183,27 @@ def showIP():
 
 
 @is_option
+def url_expander():
+    url = input(f"\n {Wh}Enter shortened URL {Wh}: {Gr}").strip()
+    print()
+    print(f' {Wh}============= {Gr}URL EXPANDER {Wh}=============')
+    try:
+        resp = requests.get(url, timeout=10, allow_redirects=True)
+        chain = [r.url for r in resp.history] + [resp.url]
+        if len(chain) == 1:
+            print(f"{Ye}\n No redirects detected — URL may already be direct")
+        else:
+            print(f"{Gr}\n Redirect chain ({len(chain) - 1} hop(s)):\n")
+            for i, step in enumerate(chain[:-1]):
+                print(f"{Wh} [{i + 1}] {Gr}{step}")
+        print(f"\n{Wh} Final URL       :{Gr}", resp.url)
+        print(f"{Wh} Status Code     :{Gr}", resp.status_code)
+        print(f"{Wh} Content Type    :{Gr}", resp.headers.get('Content-Type', 'N/A').split(';')[0])
+    except Exception as e:
+        print(f"{Re} Error: {e}")
+
+
+@is_option
 def reverse_ip():
     ip = input(f"\n {Wh}Enter IP target {Wh}: {Gr}").strip()
     print()
@@ -383,6 +404,11 @@ options = [
         'num': 9,
         'text': 'Reverse IP Lookup',
         'func': reverse_ip
+    },
+    {
+        'num': 10,
+        'text': 'URL Expander',
+        'func': url_expander
     },
     {
         'num': 0,
