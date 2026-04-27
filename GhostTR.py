@@ -449,7 +449,7 @@ def option_text():
 def option():
     # Renders the main menu banner and option list
     clear()
-    stderr.writelines(f"""
+    stderr.writelines(rf"""
        ________               __      ______                __
       / ____/ /_  ____  _____/ /_    /_  __/________ ______/ /__
      / / __/ __ \/ __ \/ ___/ __/_____/ / / ___/ __ `/ ___/ //_/
