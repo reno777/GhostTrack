@@ -183,6 +183,30 @@ def showIP():
 
 
 @is_option
+def reverse_ip():
+    ip = input(f"\n {Wh}Enter IP target {Wh}: {Gr}").strip()
+    print()
+    print(f' {Wh}============= {Gr}REVERSE IP LOOKUP {Wh}=============')
+    try:
+        resp = requests.get(
+            f"https://api.hackertarget.com/reverseiplookup/?q={ip}",
+            timeout=10
+        )
+        if resp.status_code != 200 or 'error' in resp.text.lower():
+            print(f"{Re} Error: {resp.text.strip()}")
+            return
+        domains = resp.text.strip().splitlines()
+        if not domains or domains == ['']:
+            print(f"{Ye} No domains found hosted on {ip}")
+            return
+        print(f"{Gr}\n Found {len(domains)} domain(s) on {ip}:\n")
+        for domain in domains:
+            print(f"{Wh} [ {Gr}+ {Wh}] {Gr}{domain}")
+    except Exception as e:
+        print(f"{Re} Error: {e}")
+
+
+@is_option
 def exif_extract():
     path = input(f"\n {Wh}Enter image file path {Wh}: {Gr}").strip()
     print()
@@ -354,6 +378,11 @@ options = [
         'num': 8,
         'text': 'EXIF Data Extractor',
         'func': exif_extract
+    },
+    {
+        'num': 9,
+        'text': 'Reverse IP Lookup',
+        'func': reverse_ip
     },
     {
         'num': 0,
