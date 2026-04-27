@@ -6,7 +6,6 @@
 
 # IMPORT MODULE
 
-import json
 import requests
 import time
 import os
@@ -18,13 +17,9 @@ from PIL.ExifTags import TAGS, GPSTAGS
 from phonenumbers import carrier, geocoder, timezone
 from sys import stderr
 
-Bl = '\033[30m'  # VARIABLE BUAT WARNA CUYY
 Re = '\033[1;31m'
 Gr = '\033[1;32m'
 Ye = '\033[1;33m'
-Blu = '\033[1;34m'
-Mage = '\033[1;35m'
-Cy = '\033[1;36m'
 Wh = '\033[1;37m'
 
 
@@ -90,7 +85,7 @@ def phoneGW():
         f"\n {Wh}Enter phone number target {Gr}Ex [+6281xxxxxxxxx] {Wh}: {Gr}")  # INPUT NUMBER PHONE
     default_region = "ID"  # DEFAULT NEGARA INDONESIA
 
-    parsed_number = phonenumbers.parse(User_phone, default_region)  # VARIABLE PHONENUMBERS
+    parsed_number = phonenumbers.parse(User_phone, default_region)
     region_code = phonenumbers.region_code_for_number(parsed_number)
     jenis_provider = carrier.name_for_number(parsed_number, "en")
     location = geocoder.description_for_number(parsed_number, "id")
@@ -100,8 +95,10 @@ def phoneGW():
     formatted_number_for_mobile = phonenumbers.format_number_for_mobile_dialing(parsed_number, default_region,
                                                                                 with_formatting=True)
     number_type = phonenumbers.number_type(parsed_number)
-    timezone1 = timezone.time_zones_for_number(parsed_number)
-    timezoneF = ', '.join(timezone1)
+    e164 = phonenumbers.format_number(parsed_number, phonenumbers.PhoneNumberFormat.E164)
+    timezoneF = ', '.join(timezone.time_zones_for_number(parsed_number))
+    digits_only = e164.replace('+', '')
+    encoded = e164.replace('+', '%2B')
 
     print(f"\n {Wh}========== {Gr}SHOW INFORMATION PHONE NUMBERS {Wh}==========")
     print(f"\n {Wh}Location             :{Gr} {location}")
@@ -112,21 +109,15 @@ def phoneGW():
     print(f" {Wh}Possible number      :{Gr} {is_possible_number}")
     print(f" {Wh}International format :{Gr} {formatted_number}")
     print(f" {Wh}Mobile format        :{Gr} {formatted_number_for_mobile}")
-    print(f" {Wh}Original number      :{Gr} {parsed_number.national_number}")
-    print(
-        f" {Wh}E.164 format         :{Gr} {phonenumbers.format_number(parsed_number, phonenumbers.PhoneNumberFormat.E164)}")
+    print(f" {Wh}National number      :{Gr} {parsed_number.national_number}")
+    print(f" {Wh}E.164 format         :{Gr} {e164}")
     print(f" {Wh}Country code         :{Gr} {parsed_number.country_code}")
-    print(f" {Wh}Local number         :{Gr} {parsed_number.national_number}")
     if number_type == phonenumbers.PhoneNumberType.MOBILE:
         print(f" {Wh}Type                 :{Gr} This is a mobile number")
     elif number_type == phonenumbers.PhoneNumberType.FIXED_LINE:
         print(f" {Wh}Type                 :{Gr} This is a fixed-line number")
     else:
         print(f" {Wh}Type                 :{Gr} This is another type of number")
-
-    e164 = phonenumbers.format_number(parsed_number, phonenumbers.PhoneNumberFormat.E164)
-    digits_only = e164.replace('+', '')
-    encoded = e164.replace('+', '%2B')
 
     print(f"\n {Wh}========== {Gr}OSINT SEARCH LINKS {Wh}==========")
     print(f" {Wh}[ {Gr}+ {Wh}] Telegram    : {Gr}https://t.me/{e164}")
@@ -244,7 +235,7 @@ def exif_extract():
     print(f' {Wh}============= {Gr}EXIF DATA {Wh}=============')
     try:
         img = Image.open(path)
-        exif_raw = img._getexif()
+        exif_raw = img.getexif()
     except FileNotFoundError:
         print(f"{Re} File not found: {path}")
         return
@@ -514,7 +505,6 @@ def run_banner():
 
 def main():
     while True:
-        clear()
         option()
         try:
             opt = int(input(f"{Wh}\n [ + ] {Gr}Select Option : {Wh}"))
