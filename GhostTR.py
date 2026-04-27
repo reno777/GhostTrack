@@ -11,6 +11,10 @@ import requests
 import time
 import os
 import phonenumbers
+import whois
+import dns.resolver
+from PIL import Image
+from PIL.ExifTags import TAGS, GPSTAGS
 from phonenumbers import carrier, geocoder, timezone
 from sys import stderr
 
@@ -178,6 +182,34 @@ def showIP():
     print(f"\n {Wh}==============================================")
 
 
+@is_option
+def whois_lookup():
+    domain = input(f"\n {Wh}Enter domain target {Gr}Ex [example.com] {Wh}: {Gr}").strip()
+    print()
+    print(f' {Wh}============= {Gr}WHOIS LOOKUP {Wh}=============')
+    try:
+        w = whois.whois(domain)
+    except Exception as e:
+        print(f"{Re} Error: {e}")
+        return
+
+    def fmt(val):
+        if isinstance(val, list):
+            return ', '.join(str(v) for v in val)
+        return str(val) if val else 'N/A'
+
+    print(f"{Wh}\n Domain          :{Gr}", fmt(w.domain_name))
+    print(f"{Wh} Registrar       :{Gr}", fmt(w.registrar))
+    print(f"{Wh} Created         :{Gr}", fmt(w.creation_date))
+    print(f"{Wh} Expires         :{Gr}", fmt(w.expiration_date))
+    print(f"{Wh} Updated         :{Gr}", fmt(w.updated_date))
+    print(f"{Wh} Name Servers    :{Gr}", fmt(w.name_servers))
+    print(f"{Wh} Status          :{Gr}", fmt(w.status))
+    print(f"{Wh} Emails          :{Gr}", fmt(w.emails))
+    print(f"{Wh} Org             :{Gr}", fmt(w.org))
+    print(f"{Wh} Country         :{Gr}", fmt(w.country))
+
+
 # OPTIONS
 options = [
     {
@@ -200,6 +232,11 @@ options = [
         'num': 4,
         'text': 'Username Tracker',
         'func': TrackLu
+    },
+    {
+        'num': 5,
+        'text': 'WHOIS Lookup',
+        'func': whois_lookup
     },
     {
         'num': 0,
