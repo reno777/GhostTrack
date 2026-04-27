@@ -3,7 +3,7 @@ An OSINT and information gathering tool for IPs, phone numbers, domains, usernam
 
 > Forked and expanded by [reno777](https://github.com/reno777) — original by [HunxByts](https://github.com/HunxByts)
 
-<img src="https://github.com/HunxByts/GhostTrack/blob/main/asset/bn.png"/>
+<img src="https://github.com/reno777/GhostTrack/blob/main/asset/bn.png"/>
 
 ---
 
