@@ -21,6 +21,8 @@ An OSINT and information gathering tool for IPs, phone numbers, domains, usernam
 | 8 | **EXIF Data Extractor** | Pulls GPS coordinates, device make/model, and timestamps from image files |
 | 9 | **Reverse IP Lookup** | Lists all domains co-hosted on a given IP address |
 | 10 | **URL Expander** | Reveals the full redirect chain and final destination of any shortened URL |
+| 11 | **People Search** | Search by name, location, and employer — generates Google dorks, platform search links, username permutations, and optional Hunter.io email lookup |
+| 12 | **Audio Hunter** | Finds audio and video content featuring a target — YouTube, podcasts via Listen Notes API, earnings calls, conference talks, and raw audio file dorks. Designed for voice sample collection in vishing engagements |
 
 ---
 
@@ -65,6 +67,8 @@ python3 GhostTR.py
 
 - **Email Breach Check** requires a free API key from [haveibeenpwned.com/API/Key](https://haveibeenpwned.com/API/Key)
 - **Reverse IP Lookup** uses the HackerTarget free API (rate limited)
+- **People Search** optionally uses [Hunter.io](https://hunter.io) for email discovery (free tier: 25 lookups/month)
+- **Audio Hunter** optionally uses [Listen Notes](https://www.listennotes.com/api/) for podcast search (free tier available)
 - IP tracking pairs well with [Seeker](https://github.com/thewhiteh4t/seeker) to capture a target's real IP
 
 ---
