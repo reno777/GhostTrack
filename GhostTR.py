@@ -404,6 +404,107 @@ def url_expander():
         print(f"{Re} Error: {e}")
 
 
+@is_option
+def audio_hunter():
+    # Finds audio and video content featuring a target — useful for voice sample collection
+    # Sources: YouTube, podcasts (Listen Notes API), conference dorks, earnings calls, audio file dorks
+    name = input(f"\n {Wh}Enter target name {Wh}: {Gr}").strip()
+    employer = input(f" {Wh}Enter employer/company (leave blank to skip) {Wh}: {Gr}").strip()
+    print()
+    print(f' {Wh}============= {Gr}AUDIO HUNTER {Wh}=============')
+
+    core = f'"{name}"'
+    if employer:
+        core += f' "{employer}"'
+
+    # YouTube — direct search and dorks
+    print(f"\n {Wh}========== {Gr}VIDEO SOURCES {Wh}==========")
+    yt_q = quote_plus(f'{name} {employer}' if employer else name)
+    print(f" {Wh}[ {Gr}+ {Wh}] YouTube Search : {Gr}https://www.youtube.com/results?search_query={yt_q}")
+
+    video_dorks = [
+        ('YouTube',     f'{core} site:youtube.com'),
+        ('Vimeo',       f'{core} site:vimeo.com'),
+        ('Conference',  f'{core} (keynote OR conference OR presentation OR "talk at")'),
+        ('Interview',   f'{core} (interview OR podcast OR webinar OR panel)'),
+        ('News clip',   f'{core} site:youtube.com (interview OR news OR statement)'),
+    ]
+    for label, dork in video_dorks:
+        print(f" {Wh}[ {Gr}+ {Wh}] {label:<14}: {Gr}https://www.google.com/search?q={quote_plus(dork)}")
+
+    # Earnings calls — executives often have hours of clean audio here
+    if employer:
+        print(f"\n {Wh}========== {Gr}EARNINGS & INVESTOR CALLS {Wh}==========")
+        print(f" {Ye} Executives often appear in quarterly earnings calls — high quality audio\n")
+        ec_dorks = [
+            ('Earnings call',   f'"{employer}" earnings call "{name}"'),
+            ('IR page',         f'"{employer}" investor relations call transcript'),
+            ('CNBC/Bloomberg',  f'{core} (CNBC OR Bloomberg OR "Fox Business")'),
+        ]
+        for label, dork in ec_dorks:
+            print(f" {Wh}[ {Gr}+ {Wh}] {label:<16}: {Gr}https://www.google.com/search?q={quote_plus(dork)}")
+
+    # Podcast search
+    print(f"\n {Wh}========== {Gr}PODCAST SOURCES {Wh}==========")
+    pod_q = quote_plus(f'{name} {employer}' if employer else name)
+    print(f" {Wh}[ {Gr}+ {Wh}] Listen Notes   : {Gr}https://www.listennotes.com/search/?q={pod_q}")
+    print(f" {Wh}[ {Gr}+ {Wh}] Spotify        : {Gr}https://open.spotify.com/search/{pod_q}/podcasts")
+    print(f" {Wh}[ {Gr}+ {Wh}] Google Podcasts: {Gr}https://www.google.com/search?q={quote_plus(core + ' podcast')}")
+    print(f" {Wh}[ {Gr}+ {Wh}] Apple Podcasts : {Gr}https://www.google.com/search?q={quote_plus(core + ' site:podcasts.apple.com')}")
+
+    # Listen Notes API — returns direct episode audio links
+    print()
+    api_key = input(f" {Wh}Enter Listen Notes API key for direct episode search (leave blank to skip) {Wh}: {Gr}").strip()
+    if api_key:
+        try:
+            resp = requests.get(
+                'https://listen-api.listennotes.com/api/v2/search',
+                headers={'X-ListenAPI-Key': api_key},
+                params={'q': f'{name} {employer}' if employer else name,
+                        'type': 'episode', 'language': 'English'},
+                timeout=10
+            )
+            if resp.status_code == 200:
+                results = resp.json().get('results', [])
+                if results:
+                    print(f"{Gr}\n Found {len(results)} podcast episode(s):\n")
+                    for ep in results[:5]:
+                        pub_ms = ep.get('pub_date_ms', 0)
+                        pub = time.strftime('%Y-%m-%d', time.localtime(pub_ms / 1000)) if pub_ms else 'N/A'
+                        print(f"{Wh} Title          : {Gr}{ep.get('title_original', 'N/A')}")
+                        print(f"{Wh} Podcast        : {Gr}{ep.get('podcast', {}).get('title_original', 'N/A')}")
+                        print(f"{Wh} Published      : {Gr}{pub}")
+                        print(f"{Wh} Audio URL      : {Gr}{ep.get('audio', 'N/A')}")
+                        print(f"{Wh} Link           : {Gr}{ep.get('listennotes_url', 'N/A')}")
+                        print()
+                else:
+                    print(f"{Ye}\n No podcast episodes found for {name}")
+            elif resp.status_code == 401:
+                print(f"{Re} Invalid Listen Notes API key")
+            else:
+                print(f"{Re} Listen Notes error: HTTP {resp.status_code}")
+        except Exception as e:
+            print(f"{Re} Listen Notes error: {e}")
+
+    # Raw audio file dorks — sometimes talks or interviews are hosted as loose files
+    print(f"\n {Wh}========== {Gr}AUDIO FILE DORKS {Wh}==========")
+    print(f" {Ye} Searches for loose audio files indexed by Google\n")
+    for ext in ('mp3', 'wav', 'm4a', 'ogg'):
+        dork = f'{core} filetype:{ext}'
+        print(f" {Wh}[ {Gr}+ {Wh}] .{ext:<4}          : {Gr}https://www.google.com/search?q={quote_plus(dork)}")
+
+    # TED and conference-specific searches
+    print(f"\n {Wh}========== {Gr}CONFERENCES & TALKS {Wh}==========")
+    conf_dorks = [
+        ('TED',         f'{core} site:ted.com'),
+        ('DEF CON',     f'{core} site:youtube.com "DEF CON"'),
+        ('RSA Conf',    f'{core} site:youtube.com "RSA Conference"'),
+        ('Any conf',    f'{core} site:youtube.com (conference OR summit OR symposium)'),
+    ]
+    for label, dork in conf_dorks:
+        print(f" {Wh}[ {Gr}+ {Wh}] {label:<14}: {Gr}https://www.google.com/search?q={quote_plus(dork)}")
+
+
 def username_permutations(first, last):
     # Generates realistic username patterns from a first and last name
     f, l = first.lower(), last.lower()
@@ -510,6 +611,7 @@ options = [
     {'num': 9,  'text': 'Reverse IP Lookup',     'func': reverse_ip},
     {'num': 10, 'text': 'URL Expander',          'func': url_expander},
     {'num': 11, 'text': 'People Search',         'func': people_search},
+    {'num': 12, 'text': 'Audio Hunter',          'func': audio_hunter},
     {'num': 0,  'text': 'Exit',                  'func': exit},
 ]
 
