@@ -12,6 +12,7 @@ import phonenumbers
 import whois
 import dns.resolver
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from urllib.parse import quote_plus
 from PIL import Image
 from PIL.ExifTags import TAGS, GPSTAGS
 from phonenumbers import carrier, geocoder, timezone
@@ -403,6 +404,98 @@ def url_expander():
         print(f"{Re} Error: {e}")
 
 
+def username_permutations(first, last):
+    # Generates realistic username patterns from a first and last name
+    f, l = first.lower(), last.lower()
+    base = [
+        f'{f}{l}', f'{f}.{l}', f'{f}_{l}',
+        f'{f[0]}{l}', f'{f[0]}.{l}', f'{f[0]}_{l}',
+        f'{l}{f}', f'{l}.{f}', f'{l}_{f}',
+        f'{l}{f[0]}', f'{f}', f'{l}',
+    ]
+    suffixes = ('1', '2', '01', '99', '123', str(time.localtime().tm_year))
+    with_numbers = [f'{p}{s}' for p in base[:5] for s in suffixes]
+    return base + with_numbers
+
+
+@is_option
+def people_search():
+    # Searches for a person by name, location, and/or employer
+    # Generates Google dorks, direct platform links, username permutations, and optional Hunter.io email lookup
+    name = input(f"\n {Wh}Enter full name {Wh}: {Gr}").strip()
+    location = input(f" {Wh}Enter location (city/state, leave blank to skip) {Wh}: {Gr}").strip()
+    employer = input(f" {Wh}Enter employer/company (leave blank to skip) {Wh}: {Gr}").strip()
+    print()
+    print(f' {Wh}============= {Gr}PEOPLE SEARCH {Wh}=============')
+
+    parts = name.split()
+    first = parts[0] if parts else name
+    last = parts[-1] if len(parts) > 1 else ''
+
+    # Build the core query used across all dorks
+    core = f'"{name}"'
+    if location:
+        core += f' "{location}"'
+    if employer:
+        core += f' "{employer}"'
+
+    # Google dorks
+    print(f"\n {Wh}========== {Gr}GOOGLE DORKS {Wh}==========")
+    dorks = [
+        ('General',     core),
+        ('LinkedIn',    f'{core} site:linkedin.com'),
+        ('Facebook',    f'{core} site:facebook.com'),
+        ('Email',       f'{core} email OR contact'),
+        ('News',        f'{core} (interview OR article OR news)'),
+    ]
+    for label, dork in dorks:
+        print(f" {Wh}[ {Gr}+ {Wh}] {label:<12}: {Gr}https://www.google.com/search?q={quote_plus(dork)}")
+
+    # Direct platform search links
+    print(f"\n {Wh}========== {Gr}PLATFORM SEARCHES {Wh}==========")
+    q = quote_plus(name)
+    f_enc = quote_plus(first)
+    l_enc = quote_plus(last)
+    print(f" {Wh}[ {Gr}+ {Wh}] LinkedIn      : {Gr}https://www.linkedin.com/search/results/people/?keywords={q}")
+    print(f" {Wh}[ {Gr}+ {Wh}] Facebook      : {Gr}https://www.facebook.com/search/people/?q={q}")
+    print(f" {Wh}[ {Gr}+ {Wh}] Pipl          : {Gr}https://pipl.com/search/?q={q}")
+    print(f" {Wh}[ {Gr}+ {Wh}] Spokeo        : {Gr}https://www.spokeo.com/{f_enc}-{l_enc}")
+    print(f" {Wh}[ {Gr}+ {Wh}] TruePeople    : {Gr}https://www.truepeoplesearch.com/results?name={q}")
+
+    # Username permutations
+    if first and last:
+        print(f"\n {Wh}========== {Gr}USERNAME PERMUTATIONS {Wh}==========")
+        print(f" {Ye} Tip: run these through option 4 (Username Tracker)\n")
+        for p in username_permutations(first, last):
+            print(f" {Wh}[ {Gr}+ {Wh}] {Gr}{p}")
+
+    # Optional Hunter.io email finder
+    if employer:
+        print()
+        api_key = input(f" {Wh}Enter Hunter.io API key for email lookup (leave blank to skip) {Wh}: {Gr}").strip()
+        if api_key:
+            domain_guess = employer.lower().replace(' ', '') + '.com'
+            domain = input(f" {Wh}Company domain [{domain_guess}] (press enter to use) {Wh}: {Gr}").strip() or domain_guess
+            try:
+                resp = requests.get(
+                    'https://api.hunter.io/v2/email-finder',
+                    params={'first_name': first, 'last_name': last, 'domain': domain, 'api_key': api_key},
+                    timeout=10
+                )
+                data = resp.json()
+                email = data.get('data', {}).get('email')
+                if email:
+                    score = data['data'].get('score', 'N/A')
+                    print(f"\n {Wh}[ {Gr}+ {Wh}] Email found   : {Gr}{email} {Wh}(confidence: {Gr}{score}%{Wh})")
+                    sources = data['data'].get('sources', [])
+                    for s in sources[:3]:
+                        print(f" {Wh}[ {Gr}+ {Wh}] Source        : {Gr}{s.get('uri', 'N/A')}")
+                else:
+                    print(f"{Ye}\n No email found via Hunter.io for {first} {last} @ {domain}")
+            except Exception as e:
+                print(f"{Re} Hunter.io error: {e}")
+
+
 # ── MENU ──────────────────────────────────────────────────────────────────────
 
 options = [
@@ -416,6 +509,7 @@ options = [
     {'num': 8,  'text': 'EXIF Data Extractor',   'func': exif_extract},
     {'num': 9,  'text': 'Reverse IP Lookup',     'func': reverse_ip},
     {'num': 10, 'text': 'URL Expander',          'func': url_expander},
+    {'num': 11, 'text': 'People Search',         'func': people_search},
     {'num': 0,  'text': 'Exit',                  'func': exit},
 ]
 
