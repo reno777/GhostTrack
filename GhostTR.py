@@ -8,11 +8,9 @@
 import requests
 import time
 import os
-import hashlib
 import phonenumbers
 import whois
 import dns.resolver
-import yt_dlp
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib.parse import quote_plus
 from PIL import Image
@@ -408,10 +406,8 @@ def url_expander():
 
 @is_option
 def audio_hunter():
-    # Finds and optionally downloads audio/video content featuring a target
-    # Automated sources: YouTube Data API, Podcast Index API, Listen Notes API, Internet Archive
-    # Manual dorks generated for: conferences, earnings calls, news clips, raw audio files
-    # All results saved to a timestamped file; found URLs can be auto-downloaded via yt-dlp
+    # Finds audio and video content featuring a target — useful for voice sample collection
+    # Sources: YouTube, podcasts (Listen Notes API), conference dorks, earnings calls, audio file dorks
     name = input(f"\n {Wh}Enter target name {Wh}: {Gr}").strip()
     employer = input(f" {Wh}Enter employer/company (leave blank to skip) {Wh}: {Gr}").strip()
     print()
@@ -420,149 +416,69 @@ def audio_hunter():
     core = f'"{name}"'
     if employer:
         core += f' "{employer}"'
-    search_q = f'{name} {employer}'.strip()
 
-    # Accumulate all directly downloadable URLs found across automated sources
-    found_urls = []
+    # YouTube — direct search and dorks
+    print(f"\n {Wh}========== {Gr}VIDEO SOURCES {Wh}==========")
+    yt_q = quote_plus(f'{name} {employer}' if employer else name)
+    print(f" {Wh}[ {Gr}+ {Wh}] YouTube Search : {Gr}https://www.youtube.com/results?search_query={yt_q}")
 
-    # ── 1. YOUTUBE DATA API ───────────────────────────────────────────────────
-    print(f"\n {Wh}========== {Gr}YOUTUBE (AUTOMATED) {Wh}==========")
-    yt_key = input(f" {Wh}Enter YouTube Data API key (console.cloud.google.com, leave blank to skip) {Wh}: {Gr}").strip()
-    if yt_key:
-        try:
-            queries = [
-                search_q,
-                f'{name} interview',
-                f'{name} podcast',
-                f'{name} keynote',
-            ]
-            yt_seen = set()
-            for q in queries:
-                resp = requests.get(
-                    'https://www.googleapis.com/youtube/v3/search',
-                    params={'part': 'snippet', 'q': q, 'type': 'video',
-                            'maxResults': 5, 'key': yt_key},
-                    timeout=10
-                )
-                if resp.status_code != 200:
-                    print(f"{Re} YouTube API error: HTTP {resp.status_code}")
-                    break
-                for item in resp.json().get('items', []):
-                    vid_id = item['id'].get('videoId')
-                    if not vid_id or vid_id in yt_seen:
-                        continue
-                    yt_seen.add(vid_id)
-                    snip = item['snippet']
-                    url = f"https://www.youtube.com/watch?v={vid_id}"
-                    found_urls.append(('YouTube', url, snip['title']))
-                    pub = snip.get('publishedAt', 'N/A')[:10]
-                    print(f"\n {Wh} Title    : {Gr}{snip['title']}")
-                    print(f" {Wh} Channel  : {Gr}{snip['channelTitle']}")
-                    print(f" {Wh} Date     : {Gr}{pub}")
-                    print(f" {Wh} URL      : {Gr}{url}")
-            if not yt_seen:
-                print(f"{Ye} No YouTube results found")
-        except Exception as e:
-            print(f"{Re} YouTube API error: {e}")
-    else:
-        # Fall back to manual search links
-        yt_q = quote_plus(search_q)
-        print(f" {Wh}[ {Gr}+ {Wh}] YouTube Search : {Gr}https://www.youtube.com/results?search_query={yt_q}")
-        for label, dork in [
-            ('Interview',  f'{core} (interview OR podcast OR panel) site:youtube.com'),
-            ('Conference', f'{core} (keynote OR conference OR presentation) site:youtube.com'),
-            ('News clip',  f'{core} (news OR statement) site:youtube.com'),
-            ('Vimeo',      f'{core} site:vimeo.com'),
-        ]:
-            print(f" {Wh}[ {Gr}+ {Wh}] {label:<12}: {Gr}https://www.google.com/search?q={quote_plus(dork)}")
+    video_dorks = [
+        ('YouTube',     f'{core} site:youtube.com'),
+        ('Vimeo',       f'{core} site:vimeo.com'),
+        ('Conference',  f'{core} (keynote OR conference OR presentation OR "talk at")'),
+        ('Interview',   f'{core} (interview OR podcast OR webinar OR panel)'),
+        ('News clip',   f'{core} site:youtube.com (interview OR news OR statement)'),
+    ]
+    for label, dork in video_dorks:
+        print(f" {Wh}[ {Gr}+ {Wh}] {label:<14}: {Gr}https://www.google.com/search?q={quote_plus(dork)}")
 
-    # ── 2. PODCAST INDEX API ──────────────────────────────────────────────────
-    # Free API at podcastindex.org — requires key + secret for HMAC-SHA1 auth
-    print(f"\n {Wh}========== {Gr}PODCAST INDEX (AUTOMATED) {Wh}==========")
-    pi_key = input(f" {Wh}Enter Podcast Index API key (podcastindex.org, leave blank to skip) {Wh}: {Gr}").strip()
-    pi_secret = input(f" {Wh}Enter Podcast Index API secret {Wh}: {Gr}").strip() if pi_key else ''
-    if pi_key and pi_secret:
-        try:
-            epoch = str(int(time.time()))
-            auth_hash = hashlib.sha1(f"{pi_key}{pi_secret}{epoch}".encode()).hexdigest()
-            headers = {
-                'X-Auth-Date': epoch,
-                'X-Auth-Key': pi_key,
-                'Authorization': auth_hash,
-                'User-Agent': 'GhostTrack-OSINT'
-            }
-            resp = requests.get(
-                'https://api.podcastindex.org/api/1.0/search/byterm',
-                headers=headers,
-                params={'q': name, 'max': 10},
-                timeout=10
-            )
-            if resp.status_code == 200:
-                feeds = resp.json().get('feeds', [])
-                if feeds:
-                    print(f"{Gr}\n Found {len(feeds)} podcast feed(s) mentioning {name}:\n")
-                    for feed in feeds[:5]:
-                        rss = feed.get('url', '')
-                        print(f" {Wh} Podcast  : {Gr}{feed.get('title', 'N/A')}")
-                        print(f" {Wh} Author   : {Gr}{feed.get('author', 'N/A')}")
-                        print(f" {Wh} RSS Feed : {Gr}{rss}")
-                        print(f" {Wh} Link     : {Gr}{feed.get('link', 'N/A')}")
-                        print()
-                        # Parse RSS to find episodes with the target's name
-                        if rss:
-                            try:
-                                rss_resp = requests.get(rss, timeout=10)
-                                # Search raw XML for name occurrences near enclosure URLs
-                                xml = rss_resp.text
-                                import re
-                                enclosures = re.findall(r'<enclosure[^>]+url="([^"]+)"', xml)
-                                titles = re.findall(r'<title><!\[CDATA\[([^\]]+)\]\]></title>|<title>([^<]+)</title>', xml)
-                                for i, enc_url in enumerate(enclosures[:3]):
-                                    title = ''.join(titles[i + 1]) if i + 1 < len(titles) else 'Episode'
-                                    if name.split()[0].lower() in xml.lower():
-                                        found_urls.append(('Podcast Index', enc_url, title))
-                                        print(f" {Wh} Episode  : {Gr}{title}")
-                                        print(f" {Wh} Audio    : {Gr}{enc_url}")
-                                        print()
-                            except Exception:
-                                pass
-                else:
-                    print(f"{Ye} No podcast feeds found for {name}")
-            else:
-                print(f"{Re} Podcast Index error: HTTP {resp.status_code}")
-        except Exception as e:
-            print(f"{Re} Podcast Index error: {e}")
+    # Earnings calls — executives often have hours of clean audio here
+    if employer:
+        print(f"\n {Wh}========== {Gr}EARNINGS & INVESTOR CALLS {Wh}==========")
+        print(f" {Ye} Executives often appear in quarterly earnings calls — high quality audio\n")
+        ec_dorks = [
+            ('Earnings call',   f'"{employer}" earnings call "{name}"'),
+            ('IR page',         f'"{employer}" investor relations call transcript'),
+            ('CNBC/Bloomberg',  f'{core} (CNBC OR Bloomberg OR "Fox Business")'),
+        ]
+        for label, dork in ec_dorks:
+            print(f" {Wh}[ {Gr}+ {Wh}] {label:<16}: {Gr}https://www.google.com/search?q={quote_plus(dork)}")
 
-    # ── 3. LISTEN NOTES API ───────────────────────────────────────────────────
-    print(f"\n {Wh}========== {Gr}LISTEN NOTES (AUTOMATED) {Wh}==========")
-    ln_key = input(f" {Wh}Enter Listen Notes API key (listennotes.com, leave blank to skip) {Wh}: {Gr}").strip()
-    if ln_key:
+    # Podcast search
+    print(f"\n {Wh}========== {Gr}PODCAST SOURCES {Wh}==========")
+    pod_q = quote_plus(f'{name} {employer}' if employer else name)
+    print(f" {Wh}[ {Gr}+ {Wh}] Listen Notes   : {Gr}https://www.listennotes.com/search/?q={pod_q}")
+    print(f" {Wh}[ {Gr}+ {Wh}] Spotify        : {Gr}https://open.spotify.com/search/{pod_q}/podcasts")
+    print(f" {Wh}[ {Gr}+ {Wh}] Google Podcasts: {Gr}https://www.google.com/search?q={quote_plus(core + ' podcast')}")
+    print(f" {Wh}[ {Gr}+ {Wh}] Apple Podcasts : {Gr}https://www.google.com/search?q={quote_plus(core + ' site:podcasts.apple.com')}")
+
+    # Listen Notes API — returns direct episode audio links
+    print()
+    api_key = input(f" {Wh}Enter Listen Notes API key for direct episode search (leave blank to skip) {Wh}: {Gr}").strip()
+    if api_key:
         try:
             resp = requests.get(
                 'https://listen-api.listennotes.com/api/v2/search',
-                headers={'X-ListenAPI-Key': ln_key},
-                params={'q': search_q, 'type': 'episode', 'language': 'English'},
+                headers={'X-ListenAPI-Key': api_key},
+                params={'q': f'{name} {employer}' if employer else name,
+                        'type': 'episode', 'language': 'English'},
                 timeout=10
             )
             if resp.status_code == 200:
                 results = resp.json().get('results', [])
                 if results:
-                    print(f"{Gr}\n Found {len(results)} episode(s):\n")
-                    for ep in results[:8]:
+                    print(f"{Gr}\n Found {len(results)} podcast episode(s):\n")
+                    for ep in results[:5]:
                         pub_ms = ep.get('pub_date_ms', 0)
                         pub = time.strftime('%Y-%m-%d', time.localtime(pub_ms / 1000)) if pub_ms else 'N/A'
-                        audio = ep.get('audio', '')
-                        title = ep.get('title_original', 'N/A')
-                        if audio:
-                            found_urls.append(('Listen Notes', audio, title))
-                        print(f" {Wh} Title    : {Gr}{title}")
-                        print(f" {Wh} Podcast  : {Gr}{ep.get('podcast', {}).get('title_original', 'N/A')}")
-                        print(f" {Wh} Date     : {Gr}{pub}")
-                        print(f" {Wh} Audio    : {Gr}{audio or 'N/A'}")
-                        print(f" {Wh} Link     : {Gr}{ep.get('listennotes_url', 'N/A')}")
+                        print(f"{Wh} Title          : {Gr}{ep.get('title_original', 'N/A')}")
+                        print(f"{Wh} Podcast        : {Gr}{ep.get('podcast', {}).get('title_original', 'N/A')}")
+                        print(f"{Wh} Published      : {Gr}{pub}")
+                        print(f"{Wh} Audio URL      : {Gr}{ep.get('audio', 'N/A')}")
+                        print(f"{Wh} Link           : {Gr}{ep.get('listennotes_url', 'N/A')}")
                         print()
                 else:
-                    print(f"{Ye} No episodes found for {name}")
+                    print(f"{Ye}\n No podcast episodes found for {name}")
             elif resp.status_code == 401:
                 print(f"{Re} Invalid Listen Notes API key")
             else:
@@ -570,121 +486,23 @@ def audio_hunter():
         except Exception as e:
             print(f"{Re} Listen Notes error: {e}")
 
-    # ── 4. INTERNET ARCHIVE (NO KEY NEEDED) ───────────────────────────────────
-    print(f"\n {Wh}========== {Gr}INTERNET ARCHIVE (AUTOMATED) {Wh}==========")
-    try:
-        resp = requests.get(
-            'https://archive.org/advancedsearch.php',
-            params={
-                'q': f'"{name}" AND mediatype:audio',
-                'fl[]': ['identifier', 'title', 'creator', 'date'],
-                'output': 'json',
-                'rows': 10,
-            },
-            timeout=10
-        )
-        docs = resp.json().get('response', {}).get('docs', [])
-        if docs:
-            print(f"{Gr}\n Found {len(docs)} archive recording(s):\n")
-            for doc in docs:
-                ident = doc.get('identifier', '')
-                url = f"https://archive.org/details/{ident}"
-                title = doc.get('title', 'N/A')
-                found_urls.append(('Internet Archive', url, title))
-                print(f" {Wh} Title    : {Gr}{title}")
-                print(f" {Wh} Creator  : {Gr}{doc.get('creator', 'N/A')}")
-                print(f" {Wh} Date     : {Gr}{doc.get('date', 'N/A')}")
-                print(f" {Wh} URL      : {Gr}{url}")
-                print()
-        else:
-            print(f"{Ye} No archive recordings found for {name}")
-    except Exception as e:
-        print(f"{Re} Internet Archive error: {e}")
-
-    # ── 5. EARNINGS CALLS & INVESTOR RELATIONS ────────────────────────────────
-    if employer:
-        print(f"\n {Wh}========== {Gr}EARNINGS & INVESTOR CALLS {Wh}==========")
-        print(f" {Ye} Quarterly earnings calls often have hours of clean executive audio\n")
-        for label, dork in [
-            ('Earnings call', f'"{employer}" "earnings call" "{name}"'),
-            ('IR transcript', f'"{employer}" "investor relations" transcript'),
-            ('CNBC/Bloomberg', f'{core} (CNBC OR Bloomberg OR "Fox Business")'),
-            ('SEC filing',    f'"{employer}" "conference call" site:sec.gov'),
-        ]:
-            print(f" {Wh}[ {Gr}+ {Wh}] {label:<16}: {Gr}https://www.google.com/search?q={quote_plus(dork)}")
-
-    # ── 6. CONFERENCE & TALK DORKS ────────────────────────────────────────────
-    print(f"\n {Wh}========== {Gr}CONFERENCES & TALKS {Wh}==========")
-    for label, dork in [
-        ('TED',        f'{core} site:ted.com'),
-        ('DEF CON',    f'{core} site:youtube.com "DEF CON"'),
-        ('RSA',        f'{core} site:youtube.com "RSA Conference"'),
-        ('Black Hat',  f'{core} site:youtube.com "Black Hat"'),
-        ('Any conf',   f'{core} site:youtube.com (conference OR summit OR symposium OR keynote)'),
-        ('Vimeo conf', f'{core} site:vimeo.com (conference OR talk OR keynote)'),
-    ]:
-        print(f" {Wh}[ {Gr}+ {Wh}] {label:<12}: {Gr}https://www.google.com/search?q={quote_plus(dork)}")
-
-    # ── 7. RAW AUDIO FILE DORKS ───────────────────────────────────────────────
-    print(f"\n {Wh}========== {Gr}RAW AUDIO FILE DORKS {Wh}==========")
+    # Raw audio file dorks — sometimes talks or interviews are hosted as loose files
+    print(f"\n {Wh}========== {Gr}AUDIO FILE DORKS {Wh}==========")
     print(f" {Ye} Searches for loose audio files indexed by Google\n")
-    for ext in ('mp3', 'wav', 'm4a', 'ogg', 'flac'):
-        print(f" {Wh}[ {Gr}+ {Wh}] .{ext:<5}: {Gr}https://www.google.com/search?q={quote_plus(f'{core} filetype:{ext}')}")
+    for ext in ('mp3', 'wav', 'm4a', 'ogg'):
+        dork = f'{core} filetype:{ext}'
+        print(f" {Wh}[ {Gr}+ {Wh}] .{ext:<4}          : {Gr}https://www.google.com/search?q={quote_plus(dork)}")
 
-    # ── 8. RESULTS EXPORT ─────────────────────────────────────────────────────
-    timestamp = time.strftime('%Y%m%d_%H%M%S')
-    safe_name = name.replace(' ', '_')
-    export_file = f"{safe_name}_audio_{timestamp}.txt"
-    if found_urls:
-        print(f"\n {Wh}========== {Gr}RESULTS SUMMARY {Wh}==========")
-        print(f"{Gr}\n Found {len(found_urls)} downloadable URL(s):\n")
-        for i, (source, url, title) in enumerate(found_urls, 1):
-            print(f" {Wh}[{i}] {Gr}{source}{Wh} — {title}")
-            print(f"     {Gr}{url}")
-        try:
-            with open(export_file, 'w') as f:
-                f.write(f"Audio Hunter Results — {name}\n")
-                f.write(f"Generated: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
-                f.write('=' * 60 + '\n\n')
-                for source, url, title in found_urls:
-                    f.write(f"[{source}] {title}\n{url}\n\n")
-            print(f"\n {Wh}[ {Gr}+ {Wh}] Results saved to {Gr}{export_file}")
-        except Exception as e:
-            print(f"{Re} Could not save results file: {e}")
-
-        # ── 9. YT-DLP AUTO DOWNLOAD ───────────────────────────────────────────
-        print()
-        dl = input(f" {Wh}Download audio from found URLs via yt-dlp? {Gr}[y/N] {Wh}: {Gr}").strip().lower()
-        if dl == 'y':
-            output_dir = f"{safe_name}_audio_{timestamp}"
-            os.makedirs(output_dir, exist_ok=True)
-            ydl_opts = {
-                'format': 'bestaudio/best',
-                'outtmpl': f'{output_dir}/%(title)s.%(ext)s',
-                'quiet': False,
-                'no_warnings': True,
-                'postprocessors': [{
-                    'key': 'FFmpegExtractAudio',
-                    'preferredcodec': 'mp3',
-                }],
-            }
-            for i, (source, url, title) in enumerate(found_urls, 1):
-                print(f"\n {Wh}[{i}/{len(found_urls)}] Downloading: {Gr}{title}")
-                try:
-                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                        ydl.download([url])
-                except Exception:
-                    # Retry without ffmpeg conversion if it's not installed
-                    try:
-                        fallback_opts = {k: v for k, v in ydl_opts.items() if k != 'postprocessors'}
-                        with yt_dlp.YoutubeDL(fallback_opts) as ydl:
-                            ydl.download([url])
-                    except Exception as e:
-                        print(f" {Re}Failed: {e}")
-            print(f"\n {Wh}[ {Gr}+ {Wh}] Audio saved to folder: {Gr}{output_dir}/")
-    else:
-        print(f"\n {Ye} No directly downloadable URLs found from automated sources.")
-        print(f" {Ye} Use the dork links above to manually locate audio files.")
+    # TED and conference-specific searches
+    print(f"\n {Wh}========== {Gr}CONFERENCES & TALKS {Wh}==========")
+    conf_dorks = [
+        ('TED',         f'{core} site:ted.com'),
+        ('DEF CON',     f'{core} site:youtube.com "DEF CON"'),
+        ('RSA Conf',    f'{core} site:youtube.com "RSA Conference"'),
+        ('Any conf',    f'{core} site:youtube.com (conference OR summit OR symposium)'),
+    ]
+    for label, dork in conf_dorks:
+        print(f" {Wh}[ {Gr}+ {Wh}] {label:<14}: {Gr}https://www.google.com/search?q={quote_plus(dork)}")
 
 
 def username_permutations(first, last):
