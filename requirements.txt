@@ -3,3 +3,4 @@ phonenumbers
 python-whois
 dnspython
 Pillow
+yt-dlp
